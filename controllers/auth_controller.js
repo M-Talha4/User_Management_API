@@ -58,7 +58,7 @@ function registerUser(req, res, method) {
 
     } else {
         res.writeHead(405, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ success: false, message: "Method Not Allowed", error: `${medthod} Method is Not Allowed on this API` }));
+        return res.end(JSON.stringify({ success: false, message: "Method Not Allowed", error: `${method} Method is Not Allowed on this API` }));
     }
 }
 
@@ -118,7 +118,7 @@ function loginUser(req, res, method) {
 
     } else {
         res.writeHead(405, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ success: false, message: "Method Not Allowed", error: `${medthod} Method is Not Allowed on this API` }));
+        return res.end(JSON.stringify({ success: false, message: "Method Not Allowed", error: `${method} Method is Not Allowed on this API` }));
     }
 }
 
