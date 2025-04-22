@@ -1,11 +1,31 @@
+const fs = require("fs");
+const querystring = require('querystring');
+const formidable = require('formidable');
+const path = require("path");
+
+
 const users = require('../data/users');
 const { hashPassword } = require('../security/hashing');
+const { decodeToken } = require('../security/jwt_token');
 
 
 
 
-function fetchUsers(res, method) {
+
+function fetchUsers(res, method, token) {
+    const decoded = decodeToken(token);
+    if (!decoded) {
+        res.writeHead(401);
+        res.end(JSON.stringify({ message: "Invalid or expired token" }));
+    }
+
     if (method === "GET") {
+        const usersWithoutPasswords = users.map(user => {
+            const { password, ...userData } = user;  // Exclude the password field
+            return userData;  // Return the user object without the password
+        });
+
+
         res.writeHead(200, { "Content-Type": "application/json" });
         return res.end(JSON.stringify(
             {
@@ -14,7 +34,7 @@ function fetchUsers(res, method) {
                 error: "",
                 data: {
                     count: users.length,
-                    users: users
+                    users: usersWithoutPasswords
                 }
             }
         ));
@@ -25,14 +45,28 @@ function fetchUsers(res, method) {
     }
 }
 
-function handleUser(req, res, method, query) {
-    const { email, id } = query;
-    const user = users.find(u => u.email === email || u.id === id);
+function handleUser(req, res, method, query, token) {
+    const data = querystring.parse(query);
+    const email = data.email;
+    const id = data.id;
+    console.log(email);
 
-
-    if (!user || !id) {
+    if (!email && !id) {
         res.writeHead(400, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ success: false, message: "Please provide email or id", error: "Either Email or Id is required!" }));
+    }
+
+    const user = users.find(u => u.email === email || u.id === id);
+
+    if (!user) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ success: false, message: "User does not exist.", error: "User not found!" }));
+    }
+
+    const decoded = decodeToken(token);
+    if (!decoded) {
+        res.writeHead(401);
+        res.end(JSON.stringify({ message: "Invalid or expired token" }));
     }
 
     if (method === "GET") {
@@ -45,8 +79,8 @@ function handleUser(req, res, method, query) {
                 error: "",
                 data: {
                     id: user.id,
-                    name: users.name,
-                    email: users.email
+                    name: user.name,
+                    email: user.email
                 }
             }
         ));
@@ -54,7 +88,12 @@ function handleUser(req, res, method, query) {
     }
     else if (method === 'PUT') {
 
-        const body = "";
+        if (decoded.email !== user.email) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ message: "Forbidden: Unauthorized" }));
+        }
+
+        let body = "";
         req.on("data", (chunk) => { body += chunk; });
 
         req.on("end", async () => {
@@ -70,9 +109,7 @@ function handleUser(req, res, method, query) {
                 if (name) {
                     user.name = name;
                 }
-                if (email) {
-                    user.email = email;
-                }
+
                 if (password) {
                     user.password = await hashPassword(password);
                 }
@@ -84,8 +121,8 @@ function handleUser(req, res, method, query) {
                         error: "",
                         data: {
                             id: user.id,
-                            name: users.name,
-                            email: users.email
+                            name: user.name,
+                            email: user.email
                         }
                     }
                 ));
@@ -97,21 +134,12 @@ function handleUser(req, res, method, query) {
 
         });
 
-
-        res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify(
-            {
-                success: true,
-                message: "User Updated",
-                error: "",
-                data: {
-                    id: user.id,
-                    name: users.name,
-                    email: users.email
-                }
-            }
-        ));
     } else if (method === 'DELETE') {
+        if (decoded.email !== user.email) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ message: "Forbidden: Unauthorized" }));
+        }
+
         const index = users.findIndex(u => u.email === email || u.id === id);
         users.splice(index, 1);
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -128,4 +156,54 @@ function handleUser(req, res, method, query) {
     }
 }
 
-module.exports = { fetchUsers, handleUser };
+
+
+function fileUpload(req, res, method, token) {
+    if (method === "POST") {
+
+        const decoded = decodeToken(token);
+        if (!decoded) {
+            res.writeHead(401);
+            return res.end(JSON.stringify({ message: "Invalid or expired token" }));
+        }
+
+        const uploadDir = '/Users/macbook/Documents/Node-JS/User_Management_API/uploads';
+
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir);
+        }
+
+        formidable.defaultOptions.uploadDir = './uploads';
+        formidable.defaultOptions.keepExtensions = true;
+        formidable.defaultOptions.maxFileSize = 20 * 1024 * 1024;
+
+        const form = new formidable.IncomingForm();
+
+        form.parse(req, (err, fields, files) => {
+            if (err) {
+                res.writeHead(500);
+                return res.end(JSON.stringify({ message: "File upload error", error: err }));
+            }
+            let images = [];
+
+            for (let index = 0; index < files.media.length; index++) {
+                images.push(files.media[index].filepath);
+                console.log(images);
+            }
+            res.writeHead(200, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ success: true, message: "File uploaded successfully", error: "", data: { media: images } }));
+
+        });
+
+
+
+
+    } else {
+        res.writeHead(405, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ success: false, message: "Method Not Allowed", error: `${method} Method is Not Allowed on this API` }));
+    }
+}
+
+
+
+module.exports = { fetchUsers, handleUser, fileUpload };

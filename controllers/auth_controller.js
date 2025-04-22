@@ -1,6 +1,7 @@
 const uuid = require('uuid');
 const users = require('../data/users');
 const { hashPassword, comparePassword } = require('../security/hashing');
+const { generateJWT } = require('../security/jwt_token');
 
 function registerUser(req, res, method) {
     if (method === "POST") {
@@ -32,7 +33,8 @@ function registerUser(req, res, method) {
                 const hashedPassword = await hashPassword(password);
                 users.push({ id, name, email, password: hashedPassword });
 
-                console.log(users);
+
+                const token = generateJWT(email);
 
                 res.writeHead(201, { "Content-Type": "application/json" });
                 return res.end(JSON.stringify(
@@ -41,6 +43,8 @@ function registerUser(req, res, method) {
                         message: "User Registered Successfully!",
                         error: "",
                         data: {
+                            token: token,
+                            tokenType: "Bearer",
                             id: id,
                             name: name,
                             email: email
@@ -91,7 +95,8 @@ function loginUser(req, res, method) {
                 const isPasswordValid = await comparePassword(password, user.password);
 
                 if (isPasswordValid) {
-                    console.log(users);
+
+                    const token = generateJWT(email);
 
                     res.writeHead(200, { "Content-Type": "application/json" });
                     return res.end(JSON.stringify(
@@ -100,9 +105,11 @@ function loginUser(req, res, method) {
                             message: "Logged in Successfully!",
                             error: "",
                             data: {
+                                token: token,
+                                tokenType: "Bearer",
                                 id: user.id,
                                 name: user.name,
-                                email: user.email,
+                                email: user.email
                             }
 
                         }

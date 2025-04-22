@@ -172,6 +172,12 @@ const users = [
         name: 'Amber Beier',
         email: 'Adelia_Ritchie95@yahoo.com',
         password: '$2b$10$LTiBZtZv.NKmG6.NMGFEqeLOymySM7Lbi6NM9q.T1xPENyLQFwfLa'
+    },
+    {
+        id: "b45970be-e167-489e-b41e-53d7c988b92d",
+        name: "Aaron King",
+        email: "Mac_Reynolds@gmail.com",
+        password: "$2b$10$inbpUBlkixfYk5WDTx0Ph.RocQ6BU6KMnng/WQVKY4id6nkPI.kEO"
     }
 ];
 

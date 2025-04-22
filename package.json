@@ -10,6 +10,9 @@
   "description": "",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "dotenv": "^16.5.0",
+    "formidable": "^3.5.3",
+    "jsonwebtoken": "^9.0.2",
     "uuid": "^11.1.0"
   }
 }
